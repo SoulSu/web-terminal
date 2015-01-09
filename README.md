@@ -1,4 +1,4 @@
-# jQuery Tiny Pub/Sub
+# web-terminal
 
 A really, really, REALLY tiny pub/sub implementation for jQuery.
 
