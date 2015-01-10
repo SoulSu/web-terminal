@@ -1,4 +1,7 @@
+id
 ifconfig
 ll
 ls
 top
+uptime
+w

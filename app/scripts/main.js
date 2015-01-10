@@ -2,9 +2,13 @@
 'use strict';
 ;(function(){
 	$.fn.WebTerminal = function(options){
+
 		var TERMINAL_EOL    = '囍'
 		  , TERMINAL_EOL_REGEXP = new RegExp(TERMINAL_EOL, 'g')
 		  , TERMINAL_NO_CMD = ': command not found'
+		  , TERMINAL_HISTORY_SIZE = 200
+		  , TERMINAL_HISTORY = []
+		  , TERMINAL_MAX_CHAR = 5000
 		  ;
 
 
@@ -24,12 +28,41 @@
 				},
 				textSize: 14,
 				line_height: 0,
-				prefixText: '[root@localhost ~]# '
+				// prefixText: '[root@localhost ~]# '
+				prefixText: '# //: '
 			}, options)
+		  , lastCurosrPosition = {x: 20, y: 20, yh: 17, yStep: 14}
 		  , lines 	= Math.floor(canvasOptions.height / ( canvasOptions.textSize + canvasOptions.line_height))
 		  , rows	= Math.floor(canvasOptions.width / canvasOptions.textSize)
-		  , lastCurosrPosition = {x: 20, y: 30, yh: 25}
 		  , _util 	= null
+		  , keyMap = {
+				 65: 'a'
+				,66: 'b'
+				,67: 'c'
+				,68: 'd'
+				,69: 'e'
+				,70: 'f'
+				,71: 'g'
+				,72: 'h'
+				,73: 'i'
+				,74: 'j'
+				,75: 'k'
+				,76: 'l'
+				,77: 'm'
+				,78: 'n'
+				,79: 'o'
+				,80: 'p'
+				,81: 'q'
+				,82: 'r'
+				,83: 's'
+				,84: 't'
+				,85: 'u'
+				,86: 'v'
+				,87: 'w'
+				,88: 'x'
+				,89: 'y'
+				,90: 'z' 
+			  }
 		  ;
 
 		var debug = false;
@@ -56,14 +89,16 @@
 
 			this.realWidth = this.width - 40;
 			this.realHeight = this.height - 40;
+			lines = Math.floor( this.realHeight/lastCurosrPosition.yh );
 		};
 		
 		canvasUtil.prototype.drawText = function(textArr){
 			this.context.fillStyle = this.textColor;
+			// console.log(textArr.length,'row', lines, rows, Math.floor( this.realHeight/lastCurosrPosition.yh ) );
 			for(var i=1; i<=textArr.length; i++){
-				this.context.fillText(textArr[i-1], 20, lastCurosrPosition.yh * i);
+				this.context.fillText(textArr[i-1], 20, lastCurosrPosition.yh * i + lastCurosrPosition.yStep);
 				lastCurosrPosition.x = this.context.measureText(textArr[i-1]).width + 20;
-				lastCurosrPosition.y = lastCurosrPosition.yh * i;
+				lastCurosrPosition.y = lastCurosrPosition.yh * i + lastCurosrPosition.yStep;
 			}
 		};
 		
@@ -74,10 +109,10 @@
 				this.context.strokeStyle = '#fff';
 				this.context.rect(20, 20, this.realWidth, this.realHeight);
 				this.context.stroke();
-				var lh = ( canvasOptions.textSize + canvasOptions.line_height)
+				var lh = ( lastCurosrPosition.yh )
 				  , tw = canvasOptions.textSize;
 				this.context.strokeStyle = '#fff';
-				for(var i=1; i<lines-1; i++){
+				for(var i=1; i<lines+1; i++){
 					this.context.beginPath();
 					this.context.moveTo(20, lh*i + 20);
 					this.context.lineTo(this.width-20, lh*i + 20);
@@ -140,12 +175,12 @@
 					nowLen ++;
 					putText = '';
 				}
-
 				putText += t;
 				outPutArr[nowLen] = putText;
 			}
-			// console.log('-----------',outPutArr);
-			return outPutArr;
+			var popLen = outPutArr.length - lines;
+			if(popLen<0) popLen = 0;
+			return outPutArr.slice(popLen);
 		};
 
 		var doShow = function(){
@@ -167,11 +202,10 @@
 			console.log(inputText);
 
 			if(keyCode === 8){
-				if(inputText.length == 1){
+				if(inputText[inputText.length-1] == canvasOptions.prefixText){
 					return false;
 				}
 				inputText.pop();
-
 			}else if(keyCode === 13){
 
 				if(inputText[inputText.length-1] === canvasOptions.prefixText){
@@ -189,7 +223,8 @@
 					$.ajax({
 						url: './cmd/'+cmd,
 						type: 'GET',
-						dataType: 'text'
+						dataType: 'text',
+						data: $.extend(canvasOptions.reqData, {})
 					})
 					.done(function(data) {
 						// console.log("success", data);
@@ -217,16 +252,24 @@
 								_util.reDraw(inputText);
 					  		}
 					  	}
-					  	, 700);
+					  	, 100);
+				}
+			}else if((keyCode === 34 || keyCode === 33) && event.shiftKey){
+				// run PageUp and shiftKey
+				if(keyCode === 33){
+
+				}else{
 
 				}
-
 			}else if($.inArray(keyCode, ingnoreKeyCode) !== -1){
 				return false;
 			}else if(event.ctrlKey && keyCode === 76){
 				inputText = [canvasOptions.prefixText];
 			}else{
+				// inputText.push(String.fromCharCode(keyCode));
 				inputText.push(event.key);
+				// console.log(event.key.toString(), keyMap["65"]);
+				// inputText.push(keyMap[event.key.toString()]);
 			}
 			return true;
 		};
@@ -234,26 +277,26 @@
 		var inputText  = [canvasOptions.prefixText]
 		  , ingnoreKeyCode = 
 			[
-				 9 // Tab
-				,13 // Enter
-				,16 // Shift
-				,17 // Control
-				,18 // Alt
-				,19 // Pause
-				,20 // CapsLock
-				,27 // Esc
-				,33 // PageUp
-				,34 // PageDown
-				,35 // End
-				,36 // Home
-				,37 // Left
-				,38 // Up
-				,39 // Right
-				,40 // Down
-				,45 // Insert
-				,46 // Del
-				,91 // OS
-				,93 // Menu
+				 9   // Tab
+				,13  // Enter
+				,16  // Shift
+				,17  // Control
+				,18  // Alt
+				,19  // Pause
+				,20  // CapsLock
+				,27  // Esc
+				,33  // PageUp
+				,34  // PageDown
+				,35  // End
+				,36  // Home
+				,37  // Left
+				,38  // Up
+				,39  // Right
+				,40  // Down
+				,45  // Insert
+				,46  // Del
+				,91  // OS
+				,93  // Menu
 				,112 // F1
 				,113 // F2
 				,114 // F3
@@ -270,6 +313,7 @@
 				,145 // ScrollLock
 			  ]
 		  ;
+		var tmp = [];
 		!function(){
 			doShow();
 			_util.drawCurosr();
@@ -277,6 +321,9 @@
 				if(event.keyCode === 9 || (event.keyCode === 76 && event.ctrlKey))
 					event.preventDefault();
 				console.log(event.keyCode + ", // " + event.key);
+				tmp.push(event.keyCode + ":'" + event.key +"'");
+				console.log(tmp.join(','));
+				// console.log(event);
 				if( parseInput(event) )
 					_util.reDraw(inputText);
 			});
@@ -294,5 +341,9 @@
 
 $('#terminalId').WebTerminal({
 	height: $('#terminalId').height(),
-	width: $('#terminalId').width()
+	width: $('#terminalId').width(),
+	reqUrl: './cmd/',
+	reqData: {
+		_: +new Date()
+	}
 });
