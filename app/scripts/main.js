@@ -1,5 +1,8 @@
 
 'use strict';
+
+window.console = window.console || {log: function(){return false;}};
+
 ;(function(){
 	$.fn.WebTerminal = function(options){
 
@@ -35,37 +38,16 @@
 		  , lines 	= Math.floor(canvasOptions.height / ( canvasOptions.textSize + canvasOptions.line_height))
 		  , rows	= Math.floor(canvasOptions.width / canvasOptions.textSize)
 		  , _util 	= null
-		  , keyMap = {
-				 65: 'a'
-				,66: 'b'
-				,67: 'c'
-				,68: 'd'
-				,69: 'e'
-				,70: 'f'
-				,71: 'g'
-				,72: 'h'
-				,73: 'i'
-				,74: 'j'
-				,75: 'k'
-				,76: 'l'
-				,77: 'm'
-				,78: 'n'
-				,79: 'o'
-				,80: 'p'
-				,81: 'q'
-				,82: 'r'
-				,83: 's'
-				,84: 't'
-				,85: 'u'
-				,86: 'v'
-				,87: 'w'
-				,88: 'x'
-				,89: 'y'
-				,90: 'z' 
-			  }
-		  ;
 
-		var debug = false;
+		  , inputText  = [canvasOptions.prefixText]
+		  , ingnoreKeyCode = 
+			[
+				9   /*Tab*/ ,13  /*Enter*/ ,16  /*Shift*/ ,17  /*Control*/ ,18  /*Alt*/ ,19  /*Pause*/ ,20  /*CapsLock*/ ,27  /*Esc*/ ,33  /*PageUp*/ ,34  /*PageDown*/ ,35  /*End*/ ,36  /*Home*/ ,37  /*Left*/ ,38  /*Up*/ ,39  /*Right*/ ,40  /*Down*/ ,45  /*Insert*/ ,46  /*Del*/ ,91  /*OS*/ ,93  /*Menu*/ ,112 /*F1*/ ,113 /*F2*/ ,114 /*F3*/ ,115 /*F4*/ ,116 /*F5*/ ,117 /*F6*/ ,118 /*F7*/ ,119 /*F8*/ ,120 /*F9*/ ,121 /*F10*/ ,122 /*F11*/ ,123 /*F12*/ ,144 /*NumLock*/ ,145 /*ScrollLock*/ 
+			]
+		  , pageStep = 0
+		  ;
+		  
+		var debug = !!false;
 
 		var init = function(){
 			var canvasDom
@@ -118,7 +100,7 @@
 					this.context.lineTo(this.width-20, lh*i + 20);
 					this.context.stroke();
 				}
-				for(var i=1; i<rows-1; i++){
+				for(var i=1; i<rows-2; i++){
 					this.context.beginPath();
 					this.context.moveTo(tw*i + 20, 20);
 					this.context.lineTo(tw*i + 20, this.height - 20);
@@ -178,9 +160,20 @@
 				putText += t;
 				outPutArr[nowLen] = putText;
 			}
-			var popLen = outPutArr.length - lines;
-			if(popLen<0) popLen = 0;
-			return outPutArr.slice(popLen);
+			// console.log(pageStep, "lines: " + lines, "outPutArr.length: " + outPutArr.length);
+
+			if(pageStep > 0){
+				var totalStep = Math.floor(outPutArr.length / lines);
+				if(pageStep >= totalStep) pageStep--;
+				var end   = (totalStep - pageStep) <= 0 ? outPutArr.length : lines * (totalStep - pageStep)
+				  , start = (end - lines < 0) ? 0 : end - lines
+				  ;
+				return outPutArr.slice(start, end);
+			}else{
+				var popLen = outPutArr.length - lines;
+				if(popLen<0) popLen = 0;
+				return outPutArr.slice(popLen);
+			}
 		};
 
 		var doShow = function(){
@@ -197,12 +190,10 @@
 		};
 
 		var parseInput = function(event){
-			var keyCode = event.keyCode;
-			// console.log(event);
-			console.log(inputText);
+			var keyCode = event.which;
 
 			if(keyCode === 8){
-				if(inputText[inputText.length-1] == canvasOptions.prefixText){
+				if(inputText[inputText.length-1] === canvasOptions.prefixText){
 					return false;
 				}
 				inputText.pop();
@@ -221,7 +212,7 @@
 					  ;
 
 					$.ajax({
-						url: './cmd/'+cmd,
+						url: canvasOptions.reqUrl + cmd,
 						type: 'GET',
 						dataType: 'text',
 						data: $.extend(canvasOptions.reqData, {})
@@ -242,7 +233,7 @@
 					  = setInterval(function(){
 					  		if(ajaxOver){
 					  			clearInterval(intervalID);
-					  			if(ajaxFlag){
+					  			if(ajaxFlag && ajaxReturnData.length > 0){
 					  				inputText = inputText.concat(ajaxReturnData);
 					  			}else{
 									inputText.push(cmd + TERMINAL_NO_CMD);
@@ -250,16 +241,19 @@
 								inputText.push(TERMINAL_EOL);
 								inputText.push(canvasOptions.prefixText);
 								_util.reDraw(inputText);
+								webTerminalUtil.exportData('image');
 					  		}
 					  	}
 					  	, 100);
 				}
+				pageStep = 0;
 			}else if((keyCode === 34 || keyCode === 33) && event.shiftKey){
 				// run PageUp and shiftKey
 				if(keyCode === 33){
-
+					pageStep ++;
 				}else{
-
+					if(pageStep !== 0) pageStep --;
+					if(pageStep < 0) pageStep = 0;
 				}
 			}else if($.inArray(keyCode, ingnoreKeyCode) !== -1){
 				return false;
@@ -267,83 +261,54 @@
 				inputText = [canvasOptions.prefixText];
 			}else{
 				// inputText.push(String.fromCharCode(keyCode));
-				inputText.push(event.key);
-				// console.log(event.key.toString(), keyMap["65"]);
-				// inputText.push(keyMap[event.key.toString()]);
+				// inputText.push(event.key);
+				// inputText.push(keyMap[keyCode]);
+				inputText.push($.realKey(event));
 			}
 			return true;
 		};
 
-		var inputText  = [canvasOptions.prefixText]
-		  , ingnoreKeyCode = 
-			[
-				 9   // Tab
-				,13  // Enter
-				,16  // Shift
-				,17  // Control
-				,18  // Alt
-				,19  // Pause
-				,20  // CapsLock
-				,27  // Esc
-				,33  // PageUp
-				,34  // PageDown
-				,35  // End
-				,36  // Home
-				,37  // Left
-				,38  // Up
-				,39  // Right
-				,40  // Down
-				,45  // Insert
-				,46  // Del
-				,91  // OS
-				,93  // Menu
-				,112 // F1
-				,113 // F2
-				,114 // F3
-				,115 // F4
-				,116 // F5
-				,117 // F6
-				,118 // F7
-				,119 // F8
-				,120 // F9
-				,121 // F10
-				,122 // F11
-				,123 // F12
-				,144 // NumLock
-				,145 // ScrollLock
-			  ]
-		  ;
-		var tmp = [];
 		!function(){
 			doShow();
 			_util.drawCurosr();
 			$(window).on('keydown',  function(event) {
-				if(event.keyCode === 9 || (event.keyCode === 76 && event.ctrlKey))
+				if(event.which === 9 || event.which === 46 || (event.which === 76 && event.ctrlKey))
 					event.preventDefault();
-				console.log(event.keyCode + ", // " + event.key);
-				tmp.push(event.keyCode + ":'" + event.key +"'");
-				console.log(tmp.join(','));
-				// console.log(event);
+				// console.log(event.keyCode + ", // " + event.key);
+				console.log(event);
+				// console.log($.realKey(event));
 				if( parseInput(event) )
 					_util.reDraw(inputText);
 			});
 		}();
 
-		$(window).resize(function(event) {
-			/* Act on the event */
-			// doShow();
-		});
+		var webTerminalUtil = {
+				// type [text|image|]
+				exportData: function(type){
+					var type = type || 'text'
+					  , win  = window.open('', '_blank');
+					  ;
+					switch(type){
+						case 'text':
+							win.document
+							   .write(inputText.join('')
+							   .replace(TERMINAL_EOL_REGEXP,'<br/>'));
 
-		return $this;
+							win.document.close();
+							break;
+						case 'image':
+							var image = $canvas.get(0)
+										.toDataURL("image/png")
+										.replace("image/png", "image/octet-stream;filename="+(+new Date())+".png");
+										// .replace("image/png", "image/octet-stream;headers=Content-Disposition:attachment=image.png");
+							win.document.location.href=image;
+							break;
+					}
+				}
+		};
+		return webTerminalUtil;
+
 	};
 
 })();
 
-$('#terminalId').WebTerminal({
-	height: $('#terminalId').height(),
-	width: $('#terminalId').width(),
-	reqUrl: './cmd/',
-	reqData: {
-		_: +new Date()
-	}
-});

@@ -35,6 +35,17 @@
 
         <!-- build:js({app,.tmp}) scripts/main.js -->
         <script src="scripts/main.js"></script>
+        <script src="scripts/jquery.keyboard.js"></script>
+        <script type="text/javascript">
+            var webTerminal = $('#terminalId').WebTerminal({
+                height: $('#terminalId').height(),
+                width: $('#terminalId').width(),
+                reqUrl: './cmd/',
+                reqData: {
+                    _: +new Date()
+                }
+            });
+        </script>
         <!-- endbuild -->
 </body>
 </html>
