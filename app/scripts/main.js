@@ -241,7 +241,6 @@ window.console = window.console || {log: function(){return false;}};
 								inputText.push(TERMINAL_EOL);
 								inputText.push(canvasOptions.prefixText);
 								_util.reDraw(inputText);
-								webTerminalUtil.exportData('image');
 					  		}
 					  	}
 					  	, 100);
@@ -260,9 +259,6 @@ window.console = window.console || {log: function(){return false;}};
 			}else if(event.ctrlKey && keyCode === 76){
 				inputText = [canvasOptions.prefixText];
 			}else{
-				// inputText.push(String.fromCharCode(keyCode));
-				// inputText.push(event.key);
-				// inputText.push(keyMap[keyCode]);
 				inputText.push($.realKey(event));
 			}
 			return true;
@@ -275,7 +271,7 @@ window.console = window.console || {log: function(){return false;}};
 				if(event.which === 9 || event.which === 46 || (event.which === 76 && event.ctrlKey))
 					event.preventDefault();
 				// console.log(event.keyCode + ", // " + event.key);
-				console.log(event);
+				// console.log(event);
 				// console.log($.realKey(event));
 				if( parseInput(event) )
 					_util.reDraw(inputText);
@@ -293,22 +289,30 @@ window.console = window.console || {log: function(){return false;}};
 							win.document
 							   .write(inputText.join('')
 							   .replace(TERMINAL_EOL_REGEXP,'<br/>'));
-
 							win.document.close();
 							break;
 						case 'image':
 							var image = $canvas.get(0)
 										.toDataURL("image/png")
-										.replace("image/png", "image/octet-stream;filename="+(+new Date())+".png");
-										// .replace("image/png", "image/octet-stream;headers=Content-Disposition:attachment=image.png");
-							win.document.location.href=image;
+										.replace("image/png", "image/octet-stream")
+							  , $a = $('a#web-terminal-download').size() > 0 ? $('a#web-terminal-download') : $('<a>')
+							  ;
+							  $a.attr({
+							  	id: 'web-terminal-download',
+							  	href: image,
+							  	target: '_blank',
+							  	download: (+ new Date()) + '.png'
+							  });
+							$this.append($a);
+							$a.get(0).click();
+							break;
+						default:
+							return false;
 							break;
 					}
 				}
 		};
 		return webTerminalUtil;
-
 	};
-
 })();
 
