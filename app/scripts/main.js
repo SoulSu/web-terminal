@@ -1,7 +1,7 @@
 
 'use strict';
 
-window.console = window.console || {log: function(){return false;}};
+window.console = window.console || {log: function(){return false;}, info: function(){return false;}};
 
 ;(function(){
 	$.fn.WebTerminal = function(options){
@@ -12,6 +12,8 @@ window.console = window.console || {log: function(){return false;}};
 		  , TERMINAL_HISTORY_SIZE = 200
 		  , TERMINAL_HISTORY = []
 		  , TERMINAL_MAX_CHAR = 5000
+		  , TERMINAL_VERIFY = 'Please Input Password: '
+		  , TERMINAL_VERIFY_EXIT = 'exit'
 		  ;
 
 
@@ -38,13 +40,16 @@ window.console = window.console || {log: function(){return false;}};
 		  , lines 	= Math.floor(canvasOptions.height / ( canvasOptions.textSize + canvasOptions.line_height))
 		  , rows	= Math.floor(canvasOptions.width / canvasOptions.textSize)
 		  , _util 	= null
-
-		  , inputText  = [canvasOptions.prefixText]
+		  , nowPrefixText = canvasOptions.prefixText
+		  , inputText  = []
 		  , ingnoreKeyCode = 
 			[
 				9   /*Tab*/ ,13  /*Enter*/ ,16  /*Shift*/ ,17  /*Control*/ ,18  /*Alt*/ ,19  /*Pause*/ ,20  /*CapsLock*/ ,27  /*Esc*/ ,33  /*PageUp*/ ,34  /*PageDown*/ ,35  /*End*/ ,36  /*Home*/ ,37  /*Left*/ ,38  /*Up*/ ,39  /*Right*/ ,40  /*Down*/ ,45  /*Insert*/ ,46  /*Del*/ ,91  /*OS*/ ,93  /*Menu*/ ,112 /*F1*/ ,113 /*F2*/ ,114 /*F3*/ ,115 /*F4*/ ,116 /*F5*/ ,117 /*F6*/ ,118 /*F7*/ ,119 /*F8*/ ,120 /*F9*/ ,121 /*F10*/ ,122 /*F11*/ ,123 /*F12*/ ,144 /*NumLock*/ ,145 /*ScrollLock*/ 
 			]
 		  , pageStep = 0
+		  , isVerify = false
+		  , verifyPass = false
+		  , varifyInputKey = []
 		  ;
 		  
 		var debug = !!false;
@@ -185,7 +190,7 @@ window.console = window.console || {log: function(){return false;}};
 
 		var getCmd = function(textStr){
 			var tmp = textStr.split(TERMINAL_EOL);
-			tmp = tmp[tmp.length - 2].split(canvasOptions.prefixText);
+			tmp = tmp[tmp.length - 2].split(nowPrefixText);
 			return tmp[1];
 		};
 
@@ -193,57 +198,77 @@ window.console = window.console || {log: function(){return false;}};
 			var keyCode = event.which;
 
 			if(keyCode === 8){
-				if(inputText[inputText.length-1] === canvasOptions.prefixText){
+				if(inputText[inputText.length-1] === nowPrefixText){
 					return false;
 				}
+				if(isVerify && !verifyPass)	varifyInputKey.pop();
 				inputText.pop();
 			}else if(keyCode === 13){
 
-				if(inputText[inputText.length-1] === canvasOptions.prefixText){
+				if(inputText[inputText.length-1] === nowPrefixText){
 					inputText.push(TERMINAL_EOL);
-					inputText.push(canvasOptions.prefixText);
+					inputText.push(nowPrefixText);
 				}else{
 					inputText.push(TERMINAL_EOL);
-
 					var cmd = getCmd(inputText.join(''))
 					  , ajaxOver = false
 					  , ajaxFlag = false
 					  , ajaxReturnData = ''
 					  ;
+					if(isVerify && !verifyPass){
+						if(varifyInputKey.join('') === canvasOptions.verify.key){
+							if(canvasOptions.verify.success){
+								canvasOptions.verify.success();
+								verifyPass = true;
+								nowPrefixText = canvasOptions.prefixText;
+							}
+						}else{
+							if(canvasOptions.verify.error) canvasOptions.verify.error();
+						}
+						inputText.push(TERMINAL_EOL);
+						inputText.push(nowPrefixText);
+						_util.reDraw(inputText);
+						varifyInputKey.length = 0;
+					}else{
 
-					$.ajax({
-						url: canvasOptions.reqUrl + cmd,
-						type: 'GET',
-						dataType: 'text',
-						data: $.extend(canvasOptions.reqData, {})
-					})
-					.done(function(data) {
-						// console.log("success", data);
-						ajaxReturnData = data.replace(/\n/g,TERMINAL_EOL).split('');
-						ajaxFlag = true;
-					})
-					.fail(function() {
-						console.log("error");
-					})
-					.always(function() {
-						ajaxOver = true;
-					});
+						$.ajax({
+							url: canvasOptions.reqUrl + cmd,
+							type: 'GET',
+							dataType: 'text',
+							data: $.extend(canvasOptions.reqData, {})
+						})
+						.done(function(data) {
+							// console.log("success", data);
+							ajaxReturnData = data.replace(/\n/g,TERMINAL_EOL).split('');
+							ajaxFlag = true;
+						})
+						.fail(function() {
+							console.log("error");
+						})
+						.always(function() {
+							ajaxOver = true;
+						});
 
-					var intervalID 
-					  = setInterval(function(){
-					  		if(ajaxOver){
-					  			clearInterval(intervalID);
-					  			if(ajaxFlag && ajaxReturnData.length > 0){
-					  				inputText = inputText.concat(ajaxReturnData);
-					  			}else{
-									inputText.push(cmd + TERMINAL_NO_CMD);
-					  			}
-								inputText.push(TERMINAL_EOL);
-								inputText.push(canvasOptions.prefixText);
-								_util.reDraw(inputText);
-					  		}
-					  	}
-					  	, 100);
+						var intervalID 
+						  = setInterval(function(){
+						  		if(ajaxOver){
+						  			clearInterval(intervalID);
+						  			if(ajaxFlag && ajaxReturnData.length > 0){
+						  				inputText = inputText.concat(ajaxReturnData);
+						  			}else if(cmd === TERMINAL_VERIFY_EXIT && isVerify){
+						  				if(canvasOptions.verify.exitcallback) canvasOptions.verify.exitcallback();
+						  				verifyPass = false;
+						  				nowPrefixText += TERMINAL_VERIFY;
+						  			}else{
+										inputText.push(cmd + TERMINAL_NO_CMD);
+						  			}
+									inputText.push(TERMINAL_EOL);
+									inputText.push(nowPrefixText);
+									_util.reDraw(inputText);
+						  		}
+						  	}
+						  	, 100);
+					}
 				}
 				pageStep = 0;
 			}else if((keyCode === 34 || keyCode === 33) && event.shiftKey){
@@ -257,62 +282,72 @@ window.console = window.console || {log: function(){return false;}};
 			}else if($.inArray(keyCode, ingnoreKeyCode) !== -1){
 				return false;
 			}else if(event.ctrlKey && keyCode === 76){
-				inputText = [canvasOptions.prefixText];
+				inputText = [nowPrefixText];
 			}else{
-				inputText.push($.realKey(event));
+				if(isVerify && !verifyPass){
+					varifyInputKey.push($.realKey(event));
+					inputText.push("*");
+				}else{
+					inputText.push($.realKey(event));
+				}
 			}
 			return true;
 		};
 
 		!function(){
+			nowPrefixText = canvasOptions.prefixText;
+			if(canvasOptions.verify && canvasOptions.verify.is){
+				isVerify = true;
+				nowPrefixText += TERMINAL_VERIFY;
+			}
+			inputText.push(nowPrefixText);
 			doShow();
 			_util.drawCurosr();
 			$(window).on('keydown',  function(event) {
 				if(event.which === 9 || event.which === 46 || (event.which === 76 && event.ctrlKey))
 					event.preventDefault();
-				// console.log(event.keyCode + ", // " + event.key);
-				// console.log(event);
-				// console.log($.realKey(event));
 				if( parseInput(event) )
 					_util.reDraw(inputText);
+
+				return false;
 			});
 		}();
 
-		var webTerminalUtil = {
-				// type [text|image|]
-				exportData: function(type){
-					var type = type || 'text'
-					  , win  = window.open('', '_blank');
-					  ;
-					switch(type){
-						case 'text':
-							win.document
-							   .write(inputText.join('')
-							   .replace(TERMINAL_EOL_REGEXP,'<br/>'));
-							win.document.close();
-							break;
-						case 'image':
-							var image = $canvas.get(0)
-										.toDataURL("image/png")
-										.replace("image/png", "image/octet-stream")
-							  , $a = $('a#web-terminal-download').size() > 0 ? $('a#web-terminal-download') : $('<a>')
-							  ;
-							  $a.attr({
-							  	id: 'web-terminal-download',
-							  	href: image,
-							  	target: '_blank',
-							  	download: (+ new Date()) + '.png'
-							  });
-							$this.append($a);
-							$a.get(0).click();
-							break;
-						default:
-							return false;
-							break;
-					}
+
+		return {
+			// type [text|image|]
+			exportData: function(type){
+				var type = type || 'text'
+				  , win  = window.open('', '_blank');
+				  ;
+				switch(type){
+					case 'text':
+						win.document
+						   .write(inputText.join('')
+						   .replace(TERMINAL_EOL_REGEXP,'<br/>'));
+						win.document.close();
+						break;
+					case 'image':
+						var image = $canvas.get(0)
+									.toDataURL("image/png")
+									.replace("image/png", "image/octet-stream")
+						  , $a = $('a#web-terminal-download').size() > 0 ? $('a#web-terminal-download') : $('<a>')
+						  ;
+						  $a.attr({
+						  	id: 'web-terminal-download',
+						  	href: image,
+						  	target: '_blank',
+						  	download: (+ new Date()) + '.png'
+						  });
+						$this.append($a);
+						$a.get(0).click();
+						break;
+					default:
+						return false;
+						break;
 				}
+			}
 		};
-		return webTerminalUtil;
 	};
 })();
 

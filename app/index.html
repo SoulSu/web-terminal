@@ -43,6 +43,16 @@
                 reqUrl: './cmd/',
                 reqData: {
                     _: +new Date()
+                },
+                verify: {
+                    is: true,
+                    key: '123456',
+                    success: function(){
+                        console.info('verify success!!');
+                    },
+                    error: function(){
+                        console.info('verify error!!');
+                    }
                 }
             });
         </script>
