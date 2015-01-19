@@ -1,30 +1,3 @@
-## web-terminal ![NPM version](https://img.shields.io/npm/v/web-terminal.svg?style=flat) 
-
-实现基本的js封装
-
-### Installation
-```bash
-$ npm install web-terminal
-```
-
-### Example
-```js
-var webTerminal = require('web-terminal');
-```
-
-### API
-
-
-### Contributing
-- Fork this repo
-- Clone your repo
-- Install dependencies
-- Checkout a feature branch
-- Feel free to add your features
-- Make sure your features are fully tested
-- Open a pull request, and enjoy <3
-
-### BSD license
 Copyright (c) 2015 soul
 
 All rights reserved.
@@ -50,7 +23,3 @@ LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND
 ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
----
-![docor](https://raw.githubusercontent.com/turingou/docor/master/docor.png)
-built upon love by [docor](https://github.com/turingou/docor.git) v0.2.0

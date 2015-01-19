@@ -1,8 +1,6 @@
-
-'use strict';
-
+;
 (function($){
-
+	'use strict';
 	$.realKey = function(evt){
 		var boardKeyMap 
 		  = {
